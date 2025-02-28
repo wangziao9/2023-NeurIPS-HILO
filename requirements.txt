@@ -13,7 +13,7 @@ pandas
 
 # HILO requirements
 tqdm
-tensorflow==2.12.0
+tensorflow==2.11.0
 tensorflow-addons==0.20.0
 tensorflow-datasets
 
@@ -21,7 +21,6 @@ tensorflow-datasets
 paddlepaddle==2.4.2
 paddleocr==2.6.1.3
 python-Levenshtein==0.21.1
-opencv-python==4.8.0.76
 
 # Random
 jupyter
