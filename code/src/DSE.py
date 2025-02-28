@@ -5,6 +5,7 @@ import numpy as np
 import zipfile
 import pulse2percept as p2p
 from pulse2percept.datasets.base import fetch_url
+import tensorflow_datasets as tfds
 
 from src.phosphene_model import MVGModel, MVGSpatial
 
@@ -69,6 +70,121 @@ def load_mnist(model, scale=2.0, pad=2):
     x_test = x_test.reshape((-1, model.grid.shape[0], model.grid.shape[1], 1))
 
     return (x_train, y_train), (x_test, y_test)
+
+
+def load_emnist(model, split='balanced', scale=2.0, pad=2):
+    """ Loads EMNIST dataset with specified split, rescaled and padded to the model's output shape """
+    
+    # Load EMNIST dataset
+    emnist_data = tfds.load(f'emnist/{split}', as_supervised=True)
+    
+    # Get train and test splits
+    train_ds = emnist_data['train']
+    test_ds = emnist_data['test']
+    
+    # Convert to numpy arrays
+    x_train, y_train = [], []
+    x_test, y_test = [], []
+    
+    for image, label in tfds.as_numpy(train_ds):
+        x_train.append(image)
+        y_train.append(label)
+    
+    for image, label in tfds.as_numpy(test_ds):
+        x_test.append(image)
+        y_test.append(label)
+    
+    x_train = np.array(x_train)
+    y_train = np.array(y_train)
+    x_test = np.array(x_test)
+    y_test = np.array(y_test)
+    
+    # EMNIST is stored transposed compared to MNIST, so we need to rotate
+    x_train = np.rot90(x_train, k=3, axes=(1, 2))
+    x_test = np.rot90(x_test, k=3, axes=(1, 2))
+    
+    # Flip horizontally to fix the mirror issue
+    x_train = np.flip(x_train, axis=2)
+    x_test = np.flip(x_test, axis=2)
+    
+    # Process data similar to load_mnist
+    x_train = x_train.astype('float32') / 255 * scale
+    x_train = tf.image.resize_with_pad(x_train.reshape((-1, 28, 28, 1)), 
+                                      model.grid.shape[0]-2*pad, 
+                                      model.grid.shape[1]-2*pad, 
+                                      antialias=True)[:, :, :, 0]
+    x_train = np.pad(x_train, ((0, 0), (pad, pad), (pad, pad)), mode='constant')
+    x_train = x_train.reshape((-1, model.grid.shape[0], model.grid.shape[1], 1))
+    
+    x_test = x_test.astype('float32') / 255 * scale
+    x_test = tf.image.resize_with_pad(x_test.reshape((-1, 28, 28, 1)), 
+                                     model.grid.shape[0]-2*pad, 
+                                     model.grid.shape[1]-2*pad, 
+                                     antialias=True)[:, :, :, 0]
+    x_test = np.pad(x_test, ((0, 0), (pad, pad), (pad, pad)), mode='constant')
+    x_test = x_test.reshape((-1, model.grid.shape[0], model.grid.shape[1], 1))
+    
+    return (x_train, y_train), (x_test, y_test)
+
+
+def load_gnt(filename):
+    "Parses the gnt file according to CASIA's Offline handwriting database's format"
+    import struct
+    def getInt2(f):
+        return struct.unpack('H', f.read(2))[0]
+    with open(filename, 'rb') as f:
+        labels = []
+        arrs = []
+        while True:
+            ssize_bytes = f.read(4)
+            if not ssize_bytes:
+                break
+            this_field_size = struct.unpack('I', ssize_bytes)[0]
+            # Get character's Unicode code point
+            tag_code = f.read(2).decode('GB2312', errors='ignore')
+            labels.append(ord(tag_code[0]) if tag_code else 0)
+            # Get bitmap
+            width, height = getInt2(f), getInt2(f)
+            arr = np.frombuffer(f.read(height * width), dtype=np.uint8).reshape((height, width))
+            arrs.append(arr)
+    return arrs, labels
+
+def process_cn_characters(arrs, labels, model, scale, pad):
+    x_test = np.zeros((len(arrs),model.grid.shape[0], model.grid.shape[1], 1), dtype=np.float32)
+    for i,arr in enumerate(arrs):
+        arr = (255 - arr.astype('float32')) / 255 * scale
+        arr = np.expand_dims(arr, -1)
+        arr = tf.image.resize_with_pad(arr, model.grid.shape[0]-2*pad, model.grid.shape[1]-2*pad, antialias=True)
+        arr = np.pad(arr, ((pad, pad), (pad, pad), (0,0)), mode='constant') # ((before, after), (before, after), ...)
+        x_test[i] = arr
+    y_test = np.array(labels)
+    return x_test, y_test
+
+def load_cn_characters(model, filepath, offset, batch_sz, scale=2.0, pad=2):
+    """
+    Load all Chinese characters from a specific .gnt file
+    """
+    arrs, labels = load_gnt(filepath)
+    arrs, labels = arrs[offset:offset+batch_sz], labels[offset:offset+batch_sz]
+    return (None, None), process_cn_characters(arrs, labels, model, scale, pad)
+
+def sample_cn_characters(model, gnt_dir, num_samples, scale=2.0, pad=2):
+    """
+    Randomly sample num_samples Chinese characters from the .gnt files contained in the directory gnt_dir, usage similar to load_mnist.
+    Example gnt_dir: "../assets/Gnt1.1Test/". It can be downloaded from https://nlpr.ia.ac.cn/databases/handwriting/Download.html
+    """
+    arrs, labels = [], []
+    import os
+    for f in os.listdir(gnt_dir):
+        a, l = load_gnt(gnt_dir+f)
+        arrs.extend(a)
+        labels.extend(l)
+    idxs = np.random.choice(len(arrs),num_samples,replace=False)
+    s_arrs, s_labels = [], []
+    for idx in idxs:
+        s_arrs.append(arrs[idx])
+        s_labels.append(labels[idx])
+    return (None, None), process_cn_characters(s_arrs, s_labels, model, scale, pad)
 
 
 class UniversalMVGLayer(tf.keras.layers.Layer):
