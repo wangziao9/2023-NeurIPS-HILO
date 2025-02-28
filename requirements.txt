@@ -17,11 +17,6 @@ tensorflow==2.11.0
 tensorflow-addons==0.20.0
 tensorflow-datasets
 
-# OCR and Levenshtein
-paddlepaddle==2.4.2
-paddleocr==2.6.1.3
-python-Levenshtein==0.21.1
-
 # Random
 jupyter
 ipywidgets
