@@ -1,6 +1,7 @@
 *.pb
 *.zip
 code/assets/dse/variables/*
+code/assets/*
 *.pickle
 # Byte-compiled / optimized / DLL files
 __pycache__/
