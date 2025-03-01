@@ -35,7 +35,7 @@ def calculate_similarity_ocr(image, label):
         Text recognized by PaddleOCR
     """
     # Initialize PaddleOCR
-    ocr = PaddleOCR(use_angle_cls=True, lang='ch')
+    ocr = PaddleOCR(use_angle_cls=True, lang='ch', det_model_dir='ch_ppocr_server')
     
     # Ensure the image is properly formatted for PaddleOCR
     if len(image.shape) == 2:

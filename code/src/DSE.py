@@ -5,7 +5,6 @@ import numpy as np
 import zipfile
 import pulse2percept as p2p
 from pulse2percept.datasets.base import fetch_url
-import tensorflow_datasets as tfds
 
 from src.phosphene_model import MVGModel, MVGSpatial
 
@@ -73,6 +72,7 @@ def load_mnist(model, scale=2.0, pad=2):
 
 
 def load_emnist(model, split='balanced', scale=2.0, pad=2):
+    import tensorflow_datasets as tfds
     """ Loads EMNIST dataset with specified split, rescaled and padded to the model's output shape """
     
     # Load EMNIST dataset
