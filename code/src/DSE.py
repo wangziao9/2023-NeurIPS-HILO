@@ -5,7 +5,13 @@ import numpy as np
 import zipfile
 import pulse2percept as p2p
 from pulse2percept.datasets.base import fetch_url
-
+from characters.image_enhancement import (
+    dilate_image, 
+    downsample_image, 
+    sharpen_image, 
+    enhance_edges, 
+    apply_all_enhancements
+)
 from src.phosphene_model import MVGModel, MVGSpatial
 
 MODEL_NAMES_TO_VERSION_OSF = {
@@ -186,6 +192,56 @@ def sample_cn_characters(model, gnt_dir, num_samples, scale=2.0, pad=2):
         s_labels.append(labels[idx])
     return (None, None), process_cn_characters(s_arrs, s_labels, model, scale, pad)
 
+def enhance_casia_images(images, method='all', params=None):
+    """
+    Apply enhancement methods to a batch of CASIA character images.
+    
+    Parameters
+    ----------
+    images : list or numpy.ndarray
+        List or array of character images to enhance
+    method : str
+        Enhancement method to apply. Options:
+        - 'dilate': Apply dilation only
+        - 'downsample': Apply downsampling only
+        - 'sharpen': Apply sharpening only
+        - 'edge': Apply edge enhancement only
+        - 'all': Apply all enhancement methods in sequence
+    params : dict, optional
+        Parameters for the enhancement methods
+        
+    Returns
+    -------
+    numpy.ndarray
+        Enhanced images
+    """
+    # Default parameters
+    if params is None:
+        params = {
+            'dilate': {'kernel_size': 3, 'iterations': 1},
+            'downsample': {'scale_factor': 0.5},
+            'sharpen': {'kernel_size': 3, 'alpha': 1.5},
+            'edge': {'low_threshold': 50, 'high_threshold': 150}
+        }
+    
+    # Convert to numpy array if not already
+    images_array = np.array(images)
+    
+    # Apply selected enhancement method
+    if method == 'dilate':
+        enhanced = np.array([dilate_image(img, **params['dilate']) for img in images_array])
+    elif method == 'downsample':
+        enhanced = np.array([downsample_image(img, **params['downsample']) for img in images_array])
+    elif method == 'sharpen':
+        enhanced = np.array([sharpen_image(img, **params['sharpen']) for img in images_array])
+    elif method == 'edge':
+        enhanced = np.array([enhance_edges(img, **params['edge']) for img in images_array])
+    elif method == 'all':
+        enhanced = np.array([apply_all_enhancements(img, params) for img in images_array])
+    else:
+        raise ValueError(f"Unknown enhancement method: {method}")
+    
+    return enhanced
 
 class UniversalMVGLayer(tf.keras.layers.Layer):
     def __init__(self, p2pmodel, implant, activity_regularizer=None, amp_cutoff=0.25, n_interp=200, 
