@@ -7,12 +7,15 @@ import pulse2percept as p2p
 from pulse2percept.datasets.base import fetch_url
 from characters.image_enhancement import (
     dilate_image, 
+    erode_image, 
     downsample_image, 
     sharpen_image, 
     enhance_edges, 
     apply_all_enhancements
 )
 from src.phosphene_model import MVGModel, MVGSpatial
+from PIL import Image, ImageDraw, ImageFont
+import random
 
 MODEL_NAMES_TO_VERSION_OSF = {
     # each elem is model name : (version, dse_asset_path, link, model_kwargs)
@@ -132,6 +135,27 @@ def load_emnist(model, split='balanced', scale=2.0, pad=2):
     
     return (x_train, y_train), (x_test, y_test)
 
+def load_character_once(model, char, font_path):
+    font = ImageFont.truetype(font_path, model.grid.shape[0])
+
+    img = Image.new("L", (model.grid.shape[0], model.grid.shape[1]), 0)
+    draw = ImageDraw.Draw(img)
+
+    left, top, right, bottom = draw.textbbox((0,0), char, font=font)
+    draw.text(((model.grid.shape[0]-(right-left))//2-left,(model.grid.shape[1]-(bottom-top))//2-top),char,font=font,fill=255)
+
+    np_img = np.array(img).astype(np.float32) / 255.0
+    return np_img
+
+def load_character_images(model, file="./assets/q.txt", batch_sz = 10000, font_path="./assets/Noto_Sans_SC/static/NotoSansSC-Regular.ttf"):
+    with open(file, "r", encoding="utf-8") as file:
+        text = file.read(batch_sz)
+    char_list = list(text)
+    random.shuffle(char_list)
+    text = "".join(char_list)
+    images = [load_character_once(model, char, font_path) for char in text]
+    images = np.array(images)
+    return (None, None), (images.reshape(len(text), model.grid.shape[0], model.grid.shape[1], 1), None)  # (n, 49, 49, 1)
 
 def load_gnt(filename):
     "Parses the gnt file according to CASIA's Offline handwriting database's format"
@@ -218,7 +242,8 @@ def enhance_casia_images(images, method='all', params=None):
     # Default parameters
     if params is None:
         params = {
-            'dilate': {'kernel_size': 3, 'iterations': 1},
+            'dilate': {'kernel_size': 2, 'iterations': 1},
+            'erode': {'kernel_size': 2, 'iterations': 1},
             'downsample': {'scale_factor': 0.5},
             'sharpen': {'kernel_size': 3, 'alpha': 1.5},
             'edge': {'low_threshold': 50, 'high_threshold': 150}
@@ -230,6 +255,8 @@ def enhance_casia_images(images, method='all', params=None):
     # Apply selected enhancement method
     if method == 'dilate':
         enhanced = np.array([dilate_image(img, **params['dilate']) for img in images_array])
+    elif method == 'erode':
+        enhanced = np.array([erode_image(img, **params['dilate']) for img in images_array])
     elif method == 'downsample':
         enhanced = np.array([downsample_image(img, **params['downsample']) for img in images_array])
     elif method == 'sharpen':

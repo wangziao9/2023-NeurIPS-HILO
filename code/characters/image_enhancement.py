@@ -11,6 +11,7 @@ These methods help improve OCR recognition accuracy.
 
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 def dilate_image(image, kernel_size=3, iterations=1):
     """
@@ -31,21 +32,48 @@ def dilate_image(image, kernel_size=3, iterations=1):
         Dilated image
     """
     # Ensure image is in correct format
-    if image.max() <= 1.0:
-        img = (image * 255).astype(np.uint8)
-    else:
-        img = image.astype(np.uint8)
+    img = (image * 255).astype(np.uint8)
     
     # Create kernel for dilation
-    kernel = np.ones((kernel_size, kernel_size), np.uint8)
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (kernel_size, kernel_size))
     
     # Apply dilation
-    dilated = cv2.dilate(img, kernel, iterations=iterations)
+    dilated =  cv2.dilate(img, kernel, iterations=iterations)
     
     # Normalize to match input format
-    if image.max() <= 1.0:
-        return dilated.astype(float) / 255.0
+    dilated = np.expand_dims(dilated.astype(float) / 255.0, axis=-1)
     return dilated
+
+def erode_image(image, kernel_size=3, iterations=1):
+    """
+    Apply erode to thin character strokes.
+    
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Input image (grayscale)
+    kernel_size : int
+        Size of the erode kernel
+    iterations : int
+        Number of times to apply erode
+        
+    Returns
+    -------
+    numpy.ndarray
+        Dilated image
+    """
+    # Ensure image is in correct format
+    img = (image * 255).astype(np.uint8)
+    
+    # Create kernel for dilation
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (kernel_size, kernel_size))
+    
+    # Apply dilation
+    eroded = cv2.erode(img, kernel, iterations=iterations)
+    
+    # Normalize to match input format
+    eroded = np.expand_dims(eroded.astype(float) / 255.0, axis=-1)
+    return eroded
 
 def downsample_image(image, scale_factor=0.5, interpolation=cv2.INTER_AREA):
     """
@@ -70,10 +98,7 @@ def downsample_image(image, scale_factor=0.5, interpolation=cv2.INTER_AREA):
     new_h, new_w = int(h * scale_factor), int(w * scale_factor)
     
     # Ensure image is in correct format
-    if image.max() <= 1.0:
-        img = (image * 255).astype(np.uint8)
-    else:
-        img = image.astype(np.uint8)
+    img = (image * 255).astype(np.uint8)
     
     # Downsample
     downsampled = cv2.resize(img, (new_w, new_h), interpolation=interpolation)
@@ -82,8 +107,7 @@ def downsample_image(image, scale_factor=0.5, interpolation=cv2.INTER_AREA):
     upsampled = cv2.resize(downsampled, (w, h), interpolation=cv2.INTER_LINEAR)
     
     # Normalize to match input format
-    if image.max() <= 1.0:
-        return upsampled.astype(float) / 255.0
+    upsampled =  np.expand_dims(upsampled.astype(float) / 255.0, axis=-1)
     return upsampled
 
 def sharpen_image(image, kernel_size=3, alpha=1.5):
@@ -105,10 +129,7 @@ def sharpen_image(image, kernel_size=3, alpha=1.5):
         Sharpened image
     """
     # Ensure image is in correct format
-    if image.max() <= 1.0:
-        img = (image * 255).astype(np.uint8)
-    else:
-        img = image.astype(np.uint8)
+    img = (image * 255).astype(np.uint8)
     
     # Apply Gaussian blur
     blurred = cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
@@ -117,8 +138,7 @@ def sharpen_image(image, kernel_size=3, alpha=1.5):
     unsharp_mask = cv2.addWeighted(img, 1 + alpha, blurred, -alpha, 0)
     
     # Normalize to match input format
-    if image.max() <= 1.0:
-        return unsharp_mask.astype(float) / 255.0
+    unsharp_mask = np.expand_dims(unsharp_mask.astype(float) / 255.0, axis=-1)
     return unsharp_mask
 
 def enhance_edges(image, low_threshold=50, high_threshold=150):
@@ -140,10 +160,7 @@ def enhance_edges(image, low_threshold=50, high_threshold=150):
         Edge-enhanced image
     """
     # Ensure image is in correct format
-    if image.max() <= 1.0:
-        img = (image * 255).astype(np.uint8)
-    else:
-        img = image.astype(np.uint8)
+    img = (image * 255).astype(np.uint8)
     
     # Detect edges
     edges = cv2.Canny(img, low_threshold, high_threshold)
@@ -152,8 +169,7 @@ def enhance_edges(image, low_threshold=50, high_threshold=150):
     enhanced = cv2.addWeighted(img, 0.7, edges, 0.3, 0)
     
     # Normalize to match input format
-    if image.max() <= 1.0:
-        return enhanced.astype(float) / 255.0
+    enhanced = np.expand_dims(enhanced.astype(float) / 255.0, axis=-1)
     return enhanced
 
 def apply_all_enhancements(image, params=None):
@@ -179,6 +195,10 @@ def apply_all_enhancements(image, params=None):
             'sharpen': {'kernel_size': 3, 'alpha': 1.5},
             'edge': {'low_threshold': 50, 'high_threshold': 150}
         }
+
+    # img = (image * 255).astype(np.uint8)
+    # _, binary_input = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY)
+    # img = np.expand_dims(binary_input.astype(float) / 255.0, axis=-1)
     
     # Apply dilation
     enhanced = dilate_image(image, **params['dilate'])
