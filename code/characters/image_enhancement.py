@@ -211,5 +211,6 @@ def apply_all_enhancements(image, params=None):
     
     # Apply edge enhancement
     enhanced = enhance_edges(enhanced, **params['edge'])
+    enhanced = erode_image(enhanced, **params['erode'])
     
     return enhanced

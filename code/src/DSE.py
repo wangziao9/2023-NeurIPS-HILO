@@ -151,7 +151,7 @@ def load_character_images(model, file="./assets/q.txt", batch_sz = 10000, font_p
     with open(file, "r", encoding="utf-8") as file:
         text = file.read(batch_sz)
     char_list = list(text)
-    random.shuffle(char_list)
+    # random.shuffle(char_list)
     text = "".join(char_list)
     images = [load_character_once(model, char, font_path) for char in text]
     images = np.array(images)
