@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-with open("hilo-converge-results.pkl",'rb') as f:
+with open("hilo-converge-100.pkl",'rb') as f:
     results = pickle.load(f)
 
 def a_avg(arrs):
@@ -52,7 +52,7 @@ ax3.legend()
 
 ax4.plot(xs, a_avg(l_cc), color='r', label="casia->casia")
 ax4.fill_between(xs, a_avg(l_cc)-a_std(l_cc), a_avg(l_cc)+a_std(l_cc), color='r',alpha=0.3)
-ax4.plot(xs, a_avg(l_mc), color='yellow', label="mnisa->casia")
+ax4.plot(xs, a_avg(l_mc), color='yellow', label="mnist->casia")
 ax4.fill_between(xs, a_avg(l_mc)-a_std(l_mc), a_avg(l_mc)+a_std(l_mc), color='yellow',alpha=0.3)
 ax4.set_xlabel("Duels")
 ax4.set_ylabel("Loss for target casia")
@@ -60,5 +60,5 @@ ax4.set_yscale('log')
 ax4.set_yticks([0.05, 0.1, 0.25, 1], labels =[str(i) for i in [0.05, 0.1, 0.25, 1]])
 ax4.legend()
 
-plt.suptitle("Performing HILO on 5 patients for 50 steps with MNIST and CASIA")
+plt.suptitle("Performing HILO on 5 patients for 100 steps with MNIST and CASIA")
 plt.show()

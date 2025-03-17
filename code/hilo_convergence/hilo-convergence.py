@@ -5,6 +5,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import random
+import matlab.engine
 
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -48,14 +50,15 @@ def run_hilo(patient, num_duels, present_targets, eval_sets, test_every):
 # setup
 version='v2' # version from paper, with bug fixed.
 num_patients = 5
-hilo_steps = 50
-test_every = 5
+hilo_steps = 100
+test_every = 10
 test_on = 2000
 np.random.seed(42)
 implant = RectangleImplant()
 model = MVGModel(xrange=(-12, 12), yrange=(-12, 12), xystep=0.5).build()
 dse = fetch_dse(model, implant, version=version)
 (_, _), (mnist_targets, _) = load_mnist(model)
+random.shuffle(mnist_targets)
 (_, _), (casia_targets, _) = sample_cn_characters(model, "assets/Gnt1.1Test/", 4000)
 matlab_dir = 'matlab/'
 phis = rand_model_params(num_patients, version=version)
@@ -68,14 +71,22 @@ losses_mm, losses_mc, losses_cm, losses_cc = [], [], [], []
 for phi in phis:
     model, implant = patient_from_phi_arr(phi, model, implant, implant_kwargs={})
     patient = HILOPatient(model, implant, dse=dse, phi_true=phi, matlab_dir=matlab_dir, version=version)
-    phi_guess, [losses_1, losses_2] = run_hilo(patient, hilo_steps, mnist_targets, [t_mnist, t_casia], test_every)
-    phis_mnist.append(phi_guess)
-    losses_mm.append(losses_1); losses_mc.append(losses_2)
+    try:
+        phi_guess, [losses_1, losses_2] = run_hilo(patient, hilo_steps, mnist_targets, [t_mnist, t_casia], test_every)
+        phis_mnist.append(phi_guess)
+        losses_mm.append(losses_1); losses_mc.append(losses_2)
+    except matlab.engine.MatlabExecutionError as e:
+        print(e)
+        pass
     model, implant = patient_from_phi_arr(phi, model, implant, implant_kwargs={})
     patient = HILOPatient(model, implant, dse=dse, phi_true=phi, matlab_dir=matlab_dir, version=version)
-    phi_guess, [losses_1, losses_2] = run_hilo(patient, hilo_steps, casia_targets, [t_mnist, t_casia], test_every)
-    phis_casia.append(phi_guess)
-    losses_cm.append(losses_1); losses_cc.append(losses_2)
+    try:
+        phi_guess, [losses_1, losses_2] = run_hilo(patient, hilo_steps, casia_targets, [t_mnist, t_casia], test_every)
+        phis_casia.append(phi_guess)
+        losses_cm.append(losses_1); losses_cc.append(losses_2)
+    except matlab.engine.MatlabExecutionError as e:
+        print(e)
+        pass
 
 import pickle
 results = {"phis_mnist": phis_mnist,
